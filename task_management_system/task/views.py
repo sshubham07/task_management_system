@@ -1,9 +1,10 @@
 from django.shortcuts import render
 from rest_framework import viewsets,status
 from .models import Task,Assignment
-from .serializers import TaskSerializer, AssignmentCreateSerializer
+from .serializers import TaskSerializer, AssignmentCreateSerializer, UserSerializer
 from rest_framework.response import Response
 from django.contrib.auth.models import User
+from rest_framework.views import APIView
 
 
 
@@ -22,30 +23,20 @@ class UserTaskViewSet(viewsets.ViewSet):
         serializer = TaskSerializer(tasks, many=True)
         return Response(serializer.data)
 
-class AssignTaskViewSet(viewsets.ViewSet):
-    def create(self, request):
-        user_ids = request.data.get('user_ids', [])
-        task_id = request.data.get('task_id')
+class AssignmentViewSet(viewsets.ModelViewSet):
+    queryset = Assignment.objects.all()
+    serializer_class = AssignmentCreateSerializer
 
-        if not user_ids or not task_id:
-            return Response({'error': 'user_ids and task_id are required.'}, status=status.HTTP_400_BAD_REQUEST)
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        assignments = serializer.save()
+        return Response({"message": "Tasks assigned successfully!"}, status=status.HTTP_201_CREATED)
 
-        task = Task.objects.filter(id=task_id).first()
-        if not task:
-            return Response({'error': 'Invalid task_id.'}, status=status.HTTP_404_NOT_FOUND)
-
-        assigned_users = []
-        for user_id in user_ids:
-            user = User.objects.filter(id=user_id).first()
-            if user:
-                assignment, created = Assignment.objects.get_or_create(user=user, task=task)
-                if created:
-                    assigned_users.append(user.username)
-
-        return Response({
-            'message': 'Task assigned successfully.',
-            'assigned_users': assigned_users
-        }, status=status.HTTP_201_CREATED)
+class UserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    http_method_names = ['post']
 
 
 
