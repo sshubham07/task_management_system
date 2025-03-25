@@ -1,15 +1,24 @@
 from .models import Assignment
 from rest_framework import serializers
-from .models import Task
+from .models import Task, Assignment
+from django.contrib.auth.models import User
 
 class TaskSerializer(serializers.ModelSerializer):
     class Meta:
         model = Task
         fields = '__all__'
 
-class AssignmentSerializer(serializers.ModelSerializer):
-    task = TaskSerializer(read_only=True)
+class AssignmentCreateSerializer(serializers.ModelSerializer):
+    user_id = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), write_only=True)
+    task_id = serializers.PrimaryKeyRelatedField(queryset=Task.objects.all(), write_only=True)
 
     class Meta:
         model = Assignment
-        fields = '__all__'
+        fields = ['user_id', 'task_id', 'assigned_at']
+
+    def create(self, validated_data):
+        user = validated_data['user_id']
+        task = validated_data['task_id']
+        assignment, created = Assignment.objects.get_or_create(user=user, task=task)
+        return assignment
+
